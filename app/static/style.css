@@ -1,0 +1,11 @@
+/* Clean, readable light theme built on Bootstrap */
+body { background-color: #f6f8fb; }
+.sidebar { min-width: 260px; }
+.brand { display:flex; align-items:center; gap:10px; }
+.brand-dot { width:12px; height:12px; border-radius:50%; background:#2563eb; box-shadow:0 0 0 4px rgba(37,99,235,.15); }
+.brand-title { font-weight: 700; color:#111827; letter-spacing:.2px; }
+.card { border-radius: 12px; }
+.table thead th { position: sticky; top: 0; background: #fff; z-index: 1; }
+.progress { border-radius: 999px; overflow: hidden; }
+.progress-bar { background: linear-gradient(90deg, #2563eb, #38bdf8); }
+.font-monospace { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace; }

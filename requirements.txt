@@ -1,0 +1,13 @@
+Flask
+sqlalchemy
+psycopg2-binary
+python-nmap
+pysnmp
+requests
+pyyaml
+beautifulsoup4
+gunicorn
+cryptography
+Flask-WTF
+Flask-Limiter
+defusedxml

@@ -1,0 +1,49 @@
+services:
+  db:
+    image: postgres:15
+    container_name: netscanner-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-netadmin}
+      POSTGRES_DB: ${POSTGRES_DB:-network_inventory}
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-netadmin} -d ${POSTGRES_DB:-network_inventory}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    secrets:
+      - db_password
+
+  app:
+    build: .
+    container_name: netscanner-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Set this in your .env (required) — e.g. a 32+ char random string
+      FLASK_SECRET_KEY: ${FLASK_SECRET_KEY:?set in .env}
+      # DB connection (user/db inherit from db service values)
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER:-netadmin}
+      DB_NAME: ${POSTGRES_DB:-network_inventory}
+      DB_PASSWORD_FILE: /run/secrets/db_password
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config
+      - ./logs:/app/logs
+    secrets:
+      - db_password
+
+volumes:
+  pgdata:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt

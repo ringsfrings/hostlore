@@ -1,0 +1,51 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pyc
+*.pyd
+*.pyo
+*.pyd
+*.pyo
+
+# Virtual environment
+venv/
+.env/
+
+# Logs
+logs/
+*.log
+
+# Secrets
+config/secret.key
+config/secrets.enc
+secrets/
+
+
+# Database
+pgdata/
+*.sqlite
+*.db
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Byte-compiled files
+*.egg-info/
+.eggs/
+*.egg
+
+# Docker
+*.pid
+*.sock
+
+# Ignore built distributions
+build/
+dist/
+
+# Ignore editor configs
+.vscode/
+.idea/
+*.swp
