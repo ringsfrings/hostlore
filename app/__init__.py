@@ -76,6 +76,19 @@ def create_app():
     csrf.init_app(app)
     limiter.init_app(app)
 
+    # ---- Template filters ----
+    @app.template_filter("ago")
+    def _ago(ts):
+        """'3 min ago' for a naive UTC datetime."""
+        if not ts:
+            return "—"
+        from datetime import datetime
+        secs = max(0, int((datetime.utcnow() - ts).total_seconds()))
+        for unit, size in (("d", 86400), ("h", 3600), ("min", 60)):
+            if secs >= size:
+                return f"{secs // size} {unit} ago"
+        return "just now"
+
     # ---- Blueprints ----
     from app.routes import main
     app.register_blueprint(main)

@@ -186,10 +186,14 @@ def _parse_ports_from_xml(xml):
             version = svc_el.get("version") if svc_el is not None else ""
             tunnel = svc_el.get("tunnel") if svc_el is not None else ""
             cpes = [cpe.text for cpe in (svc_el.findall("cpe") if svc_el is not None else []) if cpe.text]
+            try:
+                ttl = int(state_el.get("reason_ttl") or 0)
+            except ValueError:
+                ttl = 0
             services.append({
                 "proto": proto, "port": portid, "service": name,
                 "product": product, "version": version, "state": "open",
-                "tunnel": tunnel, "cpes": cpes,
+                "tunnel": tunnel, "cpes": cpes, "ttl": ttl,
             })
     except ET.ParseError:
         pass
@@ -294,7 +298,23 @@ def _infer_os_family(nmap_os, services, snmp_descr, smb_os, http_server, nb_name
         return "Windows"
     if any("cpe:/o:linux" in " ".join(s.get("cpes", [])).lower() for s in services or []):
         return "Linux"
-    return "Unknown"
+    return _os_family_from_ttl(services)
+
+
+def _os_family_from_ttl(services):
+    """Last resort: the TTL of the target's replies. Stacks start at 64 (Linux/Unix,
+    macOS), 128 (Windows) or 255 (routers/switches) and lose 1 per hop, so the
+    smallest default >= the observed TTL names the family. 0 = not measured
+    (unprivileged connect scan)."""
+    ttls = [s.get("ttl") or 0 for s in (services or []) if (s.get("ttl") or 0) > 0]
+    if not ttls:
+        return "Unknown"
+    ttl = max(ttls)
+    if ttl <= 64:
+        return "Linux/Unix"
+    if ttl <= 128:
+        return "Windows"
+    return "Network device"
 
 
 def _scan_one_host(ip, profile, priv_root, per_host_timeout, state, cancel_event):

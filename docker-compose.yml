@@ -29,7 +29,7 @@ services:
       retries: 5
 
   app:
-    # Published by CI/CD after every check passes. `docker compose pull` uses it;
+    # Published by CI/CD for every release (vX.Y.Z tag). `docker compose pull` uses it;
     # `docker compose up --build` builds from source instead.
     image: ringsfrings/hostlore:${HOSTLORE_TAG:-latest}
     build: .

@@ -72,6 +72,12 @@ has() { echo "$RESULTS" | json "$1"; }
   && pass "web1: website UP, title 'Lab Web 1'" || fail "web1 website not detected: $RESULTS"
 [ "$(has 'any(h["ip"]=="172.30.99.10" and any(s["port"]==80 for s in h["services"]) for h in d)')" = True ] \
   && pass "web1: tcp/80 open" || fail "web1 port 80 missing"
+[ "$(has 'any(h["ip"]=="172.30.99.10" and h["os"]=="Linux/Unix" for h in d)')" = True ] \
+  && pass "web1: OS family from reply TTL (nginx alone reveals no OS)" || fail "web1 OS still unknown"
+[ "$(has 'all(h["online"] and h["first_seen"] and h["last_seen"] for h in d)')" = True ] \
+  && pass "history: every host online with first/last seen" || fail "history fields missing"
+[ "$(has '[h["ip"] for h in d][:3]==["172.30.99.1","172.30.99.2","172.30.99.10"]')" = True ] \
+  && pass "results sorted numerically by IP" || fail "IP sort is not numeric"
 [ "$(has 'any(h["ip"]=="172.30.99.11" and any(s["port"]==22 for s in h["services"]) for h in d)')" = True ] \
   && pass "ssh1: tcp/22 open" || fail "ssh1 port 22 missing"
 [ "$(has 'any(h["ip"]=="172.30.99.12" and h["ram"] and h["os"]=="Linux" for h in d)')" = True ] \
@@ -108,6 +114,9 @@ echo "== 6. web1 goes offline -> 'went offline' alert"
 docker stop lab-web1 >/dev/null
 scan
 assert_digest 172.30.99.10 "went offline"
+[ "$(curl -fsS "$APP/results.json" | json 'any(h["ip"]=="172.30.99.10" and h["online"] is False for h in d)')" = True ] \
+  && pass "history: web1 marked Offline in results" || fail "web1 not marked offline"
+curl -fsS "$APP/results" | grep -q "Offline" && pass "results page shows the Offline badge" || fail "no Offline badge"
 [ "$(curl -fsS "$APP/metrics" | grep '^hostlore_hosts_discovered ' | awk '{print int($2)}')" -ge 1 ] \
   && pass "metrics: hosts_discovered gauge populated" || fail "hosts_discovered gauge empty"
 

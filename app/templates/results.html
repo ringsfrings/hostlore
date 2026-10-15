@@ -85,6 +85,11 @@
                     OS {{ '▲' if sort=='os' and direction=='asc' else ('▼' if sort=='os' else '') }}
                   </a>
                 </th>
+                <th>
+                  <a href="{{ url_for('main.results', page=1, per=per, q=q, status=status, osfam=osfam, svc=svc, pmin=pmin, pmax=pmax, sort='last_seen', dir=newdir if sort=='last_seen' else 'desc') }}" class="link-underline link-underline-opacity-0">
+                    Status {{ '▲' if sort=='last_seen' and direction=='asc' else ('▼' if sort=='last_seen' else '') }}
+                  </a>
+                </th>
                 <th title="Read over SNMP; N/A = no SNMP agent">CPU</th><th title="Free memory, read over SNMP; N/A = no SNMP agent">RAM</th>
                 <th style="min-width:200px;">
                   <a href="{{ url_for('main.results', page=1, per=per, q=q, status=status, osfam=osfam, svc=svc, pmin=pmin, pmax=pmax, sort='status', dir=newdir if sort=='status' else 'asc') }}" class="link-underline link-underline-opacity-0">
@@ -107,8 +112,17 @@
                 </td>
                 <td>{{ h.hostname or 'Unknown' }}</td>
                 <td>{{ h.os or 'Unknown' }}</td>
-                <td>{% if h.cpu %}{{ h.cpu }}%{% else %}N/A{% endif %}</td>
-                <td>{% if h.ram and h.ram|int(0) > 0 %}{{ '%.1f'|format(h.ram|int / 1048576) }} GB free{% else %}N/A{% endif %}</td>
+                <td class="small text-nowrap">
+                  {% if h.is_up is sameas false %}
+                    <span class="badge bg-danger">Offline</span>
+                  {% else %}
+                    <span class="badge bg-success">Online</span>
+                  {% endif %}
+                  <div class="text-muted mt-1" title="Last seen {{ h.last_seen }} UTC">seen {{ h.last_seen|ago }}</div>
+                  <div class="text-muted" title="First seen {{ h.first_seen }} UTC">first {{ h.first_seen|ago }}</div>
+                </td>
+                <td>{% if h.cpu %}{{ h.cpu }}%{% else %}<span class="text-muted small" title="CPU is read over SNMP; this host has no SNMP agent">no SNMP</span>{% endif %}</td>
+                <td>{% if h.ram and h.ram|int(0) > 0 %}{{ '%.1f'|format(h.ram|int / 1048576) }} GB free{% else %}<span class="text-muted small" title="Memory is read over SNMP; this host has no SNMP agent">no SNMP</span>{% endif %}</td>
                 <td>
                   {% if h.website %}
                     <span class="badge {{ 'bg-success' if h.website.status else 'bg-danger' }}">
@@ -126,7 +140,7 @@
                 <td class="small font-monospace">
                   {% if h.services %}
                     {% for s in h.services %}
-                      • {{ s.proto|upper }}/{{ s.port }} | {{ s.service }} | {{ s.product }} {{ s.version }}<br/>
+                      • {{ s.proto|upper }}/{{ s.port }} | {{ s.service or '?' }}{% if s.product %} | {{ s.product }}{% if s.version %} {{ s.version }}{% endif %}{% endif %}<br/>
                     {% endfor %}
                   {% else %}
                     <span class="text-muted">None</span>

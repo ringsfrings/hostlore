@@ -1,5 +1,12 @@
 """Pure-function tests for scanner.py — no nmap, no network, no DB."""
-from app.scanner import _extract_title, _infer_os_family, _parse_ports_from_xml, _pick_http_candidates, _scan_completed
+from app.scanner import (
+    _extract_title,
+    _infer_os_family,
+    _os_family_from_ttl,
+    _parse_ports_from_xml,
+    _pick_http_candidates,
+    _scan_completed,
+)
 
 SAMPLE_XML = """<?xml version="1.0"?>
 <nmaprun>
@@ -127,3 +134,17 @@ def test_scan_completed_rejects_timeouts_and_garbage():
     assert _scan_completed("") is False             # killed by our own timeout
     assert _scan_completed("<nmaprun>") is False    # truncated XML
     assert _scan_completed("<nmaprun></nmaprun>") is False
+
+
+def test_os_family_from_ttl():
+    assert _os_family_from_ttl([{"ttl": 64}]) == "Linux/Unix"
+    assert _os_family_from_ttl([{"ttl": 61}]) == "Linux/Unix"      # 3 hops away
+    assert _os_family_from_ttl([{"ttl": 128}, {"ttl": 127}]) == "Windows"
+    assert _os_family_from_ttl([{"ttl": 254}]) == "Network device"
+    assert _os_family_from_ttl([{"ttl": 0}]) == "Unknown"           # connect scan: not measured
+    assert _os_family_from_ttl([]) == "Unknown"
+
+
+def test_infer_os_family_falls_back_to_ttl():
+    nginx_only = [{"port": 80, "service": "http", "product": "nginx", "version": "1.27", "cpes": [], "ttl": 64}]
+    assert _infer_os_family(None, nginx_only, None, None, None, None) == "Linux/Unix"

@@ -56,12 +56,12 @@ Open **http://localhost:8000**. On first run the **Setup page** asks for:
 The DB password comes from the Docker secret, so it is not asked for. Settings are encrypted into `config/secrets.enc`; change them later at `/reset` (rate-limited).
 
 ### Use the published image (no build)
-Every commit on `main` that passes all checks is published to Docker Hub for `amd64` and `arm64`:
+Each release (`vX.Y.Z` tag) that passes all checks is published to Docker Hub for `amd64` and `arm64`:
 ```bash
 docker compose pull && docker compose up -d                   # latest
 HOSTLORE_TAG=1.0.0 docker compose pull && HOSTLORE_TAG=1.0.0 docker compose up -d   # pinned release
 ```
-Tags: `latest` (main), `sha-<commit>`, and `X.Y.Z` / `X.Y` for git tags `vX.Y.Z`.
+Image tags: `X.Y.Z`, `X.Y` and `latest` (= newest release). Release notes: [Releases](https://github.com/ringsfrings/hostlore/releases).
 
 ### With Prometheus + Grafana
 ```bash

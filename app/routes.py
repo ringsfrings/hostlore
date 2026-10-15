@@ -4,7 +4,8 @@ import math
 import os
 
 from flask import Blueprint, Response, flash, jsonify, redirect, render_template, request, url_for
-from sqlalchemy import asc, desc, func
+from sqlalchemy import asc, cast, desc, func
+from sqlalchemy.dialects.postgresql import INET
 from sqlalchemy.orm import selectinload
 
 from app import metrics as M
@@ -16,6 +17,9 @@ from app.utils import get_scan_profile, has_env_db_password, save_form_data, set
 from db.models import Host, Service, Website, get_session, init_db
 
 LOG = logging.getLogger("routes")
+
+# Sort IPs as addresses (10.0.0.2 before 10.0.0.10), not as text.
+IP_ORDER = cast(Host.ip, INET)
 main = Blueprint("main", __name__)
 
 
@@ -211,10 +215,12 @@ def results():
             order_col = W.status
         elif sort == "port_count":
             order_col = func.coalesce(port_counts.c.pc, 0)
+        elif sort == "last_seen":
+            order_col = Host.last_seen
         else:
-            order_col = Host.ip
+            order_col = IP_ORDER
 
-        query = query.order_by(desc(order_col) if direction == "desc" else asc(order_col), asc(Host.ip))
+        query = query.order_by(desc(order_col) if direction == "desc" else asc(order_col), asc(IP_ORDER))
         total_items = query.count()
         total_pages = max(1, math.ceil(total_items / per))
         if page > total_pages:
@@ -243,18 +249,22 @@ def results_csv():
         pmin, pmax = _parse_port_range()
 
         base = _apply_query_filters(session, q, status, osfam, svc_contains, pmin, pmax)\
-               .order_by(asc(Host.ip))\
+               .order_by(asc(IP_ORDER))\
                .options(selectinload(Host.website), selectinload(Host.services))
         rows = base.all()
 
         def generate():
-            yield "ip,hostname,os,port_count,website_status,website_title,website_url\n"
+            yield "ip,hostname,os,online,first_seen,last_seen,port_count,website_status,website_title,website_url\n"
             for h in rows:
                 pc = len(h.services or [])
                 ws_status = ("UP" if (h.website and h.website.status) else "DOWN") if h.website else "N/A"
                 title = (h.website.title.replace(',', ' ') if (h.website and h.website.title) else "")
                 url = (h.website.url if (h.website and h.website.url) else "")
-                yield f"{h.ip},{(h.hostname or '').replace(',', ' ')},{(h.os or '').replace(',', ' ')},{pc},{ws_status},{title},{url}\n"
+                online = "yes" if h.is_up is not False else "no"
+                first = h.first_seen.isoformat() + "Z" if h.first_seen else ""
+                last = h.last_seen.isoformat() + "Z" if h.last_seen else ""
+                yield (f"{h.ip},{(h.hostname or '').replace(',', ' ')},{(h.os or '').replace(',', ' ')},"
+                       f"{online},{first},{last},{pc},{ws_status},{title},{url}\n")
 
         resp = Response(generate(), mimetype="text/csv")
         resp.headers["Content-Disposition"] = "attachment; filename=results.csv"
@@ -274,7 +284,7 @@ def results_json():
         pmin, pmax = _parse_port_range()
 
         base = _apply_query_filters(session, q, status, osfam, svc_contains, pmin, pmax)\
-               .order_by(asc(Host.ip))\
+               .order_by(asc(IP_ORDER))\
                .options(selectinload(Host.website), selectinload(Host.services))
         rows = base.all()
 
@@ -282,6 +292,9 @@ def results_json():
         for h in rows:
             payload.append({
                 "ip": h.ip, "hostname": h.hostname, "os": h.os, "cpu": h.cpu, "ram": h.ram,
+                "online": h.is_up is not False,
+                "first_seen": h.first_seen.isoformat() + "Z" if h.first_seen else None,
+                "last_seen": h.last_seen.isoformat() + "Z" if h.last_seen else None,
                 "website": {
                     "status": h.website.status if h.website else None,
                     "title": h.website.title if h.website else None,
