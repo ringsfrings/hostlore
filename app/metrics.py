@@ -115,6 +115,8 @@ for _p in ("quick", "balanced", "deep"):
         SCANS_TOTAL.labels(profile=_p, result=_r)
 for _r in ("ok", "error", "skipped"):
     TELEGRAM_SENDS_TOTAL.labels(result=_r)
+for _op in ("discover", "tcp", "udp"):
+    NMAP_TIMEOUTS_TOTAL.labels(op=_op)
 
 
 def render() -> tuple[bytes, str]:
