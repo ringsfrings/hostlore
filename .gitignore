@@ -1,51 +1,56 @@
-# Python cache
+# Python
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
-*.pyc
-*.pyd
-*.pyo
-*.pyd
-*.pyo
+*.pkl
 
-# Virtual environment
+# Virtualenvs
+.venv/
 venv/
-.env/
+ENV/
+env/
+
+# Environment files (never commit real values)
+.env
+.env.*
+!.env.example
+
+# Secrets & sensitive files
+secrets/
+config/secret.key
+config/secrets.enc
 
 # Logs
 logs/
 *.log
 
-# Secrets
-config/secret.key
-config/secrets.enc
-secrets/
+# Testing / coverage
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
 
-
-# Database
+# Database dumps / local data
 pgdata/
 *.sqlite
 *.db
 
-# OS-specific files
+# Editor / OS junk
 .DS_Store
 Thumbs.db
-
-# Byte-compiled files
-*.egg-info/
-.eggs/
-*.egg
-
-# Docker
-*.pid
-*.sock
-
-# Ignore built distributions
-build/
-dist/
-
-# Ignore editor configs
+*.swp
+*.swo
+*.tmp
 .vscode/
 .idea/
-*.swp
+
+# Build artifacts
+*.tar
+*.bak
+*.old
+*.orig
+build/
+dist/
+*.egg-info/
+.eggs/

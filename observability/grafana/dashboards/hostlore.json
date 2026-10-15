@@ -1,0 +1,165 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Scan in progress",
+      "id": 1,
+      "gridPos": {"x": 0, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "hostlore_scan_in_progress", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {"type": "value", "options": {"0": {"text": "Idle", "color": "green"}}},
+            {"type": "value", "options": {"1": {"text": "Running", "color": "orange"}}}
+          ],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
+        }
+      },
+      "options": {"colorMode": "background", "graphMode": "none", "textMode": "value"}
+    },
+    {
+      "type": "stat",
+      "title": "Scans (24h)",
+      "id": 2,
+      "gridPos": {"x": 4, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "sum(increase(hostlore_scans_total[24h]))", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "type": "stat",
+      "title": "Hosts discovered (last scan)",
+      "id": 3,
+      "gridPos": {"x": 8, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "hostlore_hosts_discovered", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "type": "stat",
+      "title": "Open services (last scan)",
+      "id": 4,
+      "gridPos": {"x": 12, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "hostlore_services_open", "refId": "A"}],
+      "fieldConfig": {"defaults": {"unit": "short", "decimals": 0}}
+    },
+    {
+      "type": "stat",
+      "title": "Websites UP",
+      "id": 5,
+      "gridPos": {"x": 16, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "hostlore_websites_up", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0, "color": {"mode": "fixed", "fixedColor": "green"}}
+      }
+    },
+    {
+      "type": "stat",
+      "title": "Websites DOWN",
+      "id": 6,
+      "gridPos": {"x": 20, "y": 0, "w": 4, "h": 4},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [{"expr": "hostlore_websites_down", "refId": "A"}],
+      "fieldConfig": {
+        "defaults": {"unit": "short", "decimals": 0, "color": {"mode": "fixed", "fixedColor": "red"}}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Scan duration (p50 / p95 / p99)",
+      "id": 7,
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.50, sum by (le, profile) (rate(hostlore_scan_duration_seconds_bucket[5m])))",
+         "legendFormat": "p50 {{profile}}", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, sum by (le, profile) (rate(hostlore_scan_duration_seconds_bucket[5m])))",
+         "legendFormat": "p95 {{profile}}", "refId": "B"},
+        {"expr": "histogram_quantile(0.99, sum by (le, profile) (rate(hostlore_scan_duration_seconds_bucket[5m])))",
+         "legendFormat": "p99 {{profile}}", "refId": "C"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "nmap duration p95 (by op)",
+      "id": 8,
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "histogram_quantile(0.95, sum by (le, op) (rate(hostlore_nmap_duration_seconds_bucket[5m])))",
+         "legendFormat": "{{op}}", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Scan outcomes (rate)",
+      "id": 9,
+      "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (result) (rate(hostlore_scans_total[15m]))",
+         "legendFormat": "{{result}}", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "Telegram alerts (rate by result)",
+      "id": 10,
+      "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (result) (rate(hostlore_telegram_sends_total[5m]))",
+         "legendFormat": "{{result}}", "refId": "A"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "ops"}}
+    },
+    {
+      "type": "timeseries",
+      "title": "nmap timeouts (rate)",
+      "id": 11,
+      "gridPos": {"x": 0, "y": 20, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "sum by (op) (rate(hostlore_nmap_timeouts_total[15m]))",
+         "legendFormat": "{{op}}", "refId": "A"}
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "ops", "color": {"mode": "fixed", "fixedColor": "red"}}
+      }
+    },
+    {
+      "type": "timeseries",
+      "title": "Inventory: hosts discovered vs scanned",
+      "id": 12,
+      "gridPos": {"x": 12, "y": 20, "w": 12, "h": 6},
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "targets": [
+        {"expr": "hostlore_hosts_discovered", "legendFormat": "discovered", "refId": "A"},
+        {"expr": "hostlore_hosts_scanned", "legendFormat": "scanned", "refId": "B"}
+      ],
+      "fieldConfig": {"defaults": {"unit": "short"}}
+    }
+  ],
+  "refresh": "15s",
+  "schemaVersion": 39,
+  "tags": ["hostlore", "sre"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "title": "Hostlore",
+  "uid": "hostlore",
+  "version": 1
+}

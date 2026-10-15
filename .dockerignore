@@ -1,9 +1,41 @@
-*.log
-__pycache__/
-*.pyc
-.env.local
-.venv/
-.git/
-config/secrets.enc
+.git
+.gitignore
+.dockerignore
+.env
+.env.*
+!.env.example
+
+# Secrets — never build these into the image; mount at runtime.
+secrets/
 config/secret.key
-logs/*
+config/secrets.enc
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+ENV/
+
+# Logs
+logs/
+*.log
+
+# Editor / OS junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Build artifacts
+*.tar
+*.bak
+build/
+dist/

@@ -4,7 +4,10 @@ CREATE TABLE hosts (
   hostname TEXT,
   os TEXT,
   cpu TEXT,
-  ram TEXT
+  ram TEXT,
+  first_seen TIMESTAMP,
+  last_seen TIMESTAMP,
+  is_up BOOLEAN DEFAULT TRUE
 );
 
 CREATE TABLE services (

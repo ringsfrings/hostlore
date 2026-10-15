@@ -1,0 +1,29 @@
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+extend-exclude = [
+    "app/static",
+    "app/templates",
+]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "F",   # pyflakes
+    "W",   # pycodestyle warnings
+    "I",   # isort
+    "B",   # bugbear
+    "UP",  # pyupgrade
+]
+ignore = [
+    "E501",  # line-length is handled by formatter, not linter
+    "E402",  # module-level import not at top (sys.path juggling in conftest)
+    "B008",  # function calls in argument defaults (Flask idiom)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["F401"]  # unused imports common in fixture-heavy tests
+
+[tool.pytest.ini_options]
+# pytest.ini takes precedence; this stays as a fallback marker.
+testpaths = ["tests"]

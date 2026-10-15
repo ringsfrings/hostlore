@@ -1,0 +1,72 @@
+# Overlay compose file — a small, isolated "office LAN" to scan, plus a mock Telegram API.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.lab.yml up -d --build
+#   ./lab/e2e.sh            # setup → scan → assert → break a target → rescan → assert
+#
+# Lab subnet 172.30.99.0/24 (nothing else lives there, so scans are deterministic):
+#   .10  web1   nginx serving <title>Lab Web 1</title>
+#   .11  ssh1   OpenSSH on 22
+#   .12  snmp1  net-snmp, community "public", sysName lab-snmp1
+#   .20  mock-telegram (records alerts; GET :8081/messages)
+
+services:
+  app:
+    environment:
+      TELEGRAM_API_BASE: http://mock-telegram:8081
+    volumes:
+      # Own config volume: the lab never touches your real ./config secrets.
+      - lab-config:/app/config
+    networks:
+      default:
+      lab:
+        ipv4_address: 172.30.99.2
+
+  web1:
+    image: nginx:1.27-alpine
+    container_name: lab-web1
+    volumes:
+      - ./lab/web1/index.html:/usr/share/nginx/html/index.html:ro
+    networks:
+      lab:
+        ipv4_address: 172.30.99.10
+
+  ssh1:
+    image: alpine:3.20
+    container_name: lab-ssh1
+    command: ["sh", "-c", "apk add --no-cache openssh-server >/dev/null && ssh-keygen -A && exec /usr/sbin/sshd -D -e"]
+    networks:
+      lab:
+        ipv4_address: 172.30.99.11
+
+  snmp1:
+    image: alpine:3.20
+    container_name: lab-snmp1
+    command: ["sh", "-c", "apk add --no-cache net-snmp >/dev/null && exec snmpd -f -Lo -C -c /etc/snmp/lab.conf"]
+    volumes:
+      - ./lab/snmp/snmpd.conf:/etc/snmp/lab.conf:ro
+    networks:
+      lab:
+        ipv4_address: 172.30.99.12
+
+  mock-telegram:
+    image: python:3.12-alpine
+    container_name: lab-mock-telegram
+    command: ["python", "/srv/server.py"]
+    volumes:
+      - ./lab/mock-telegram/server.py:/srv/server.py:ro
+    ports:
+      - "127.0.0.1:8081:8081"
+    networks:
+      default:
+      lab:
+        ipv4_address: 172.30.99.20
+
+volumes:
+  lab-config:
+
+networks:
+  lab:
+    ipam:
+      config:
+        - subnet: 172.30.99.0/24

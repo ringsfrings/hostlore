@@ -1,7 +1,7 @@
 services:
   db:
     image: postgres:15
-    container_name: netscanner-db
+    container_name: hostlore-db
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-netadmin}
@@ -17,12 +17,25 @@ services:
     secrets:
       - db_password
 
+  redis:
+    image: redis:7-alpine
+    container_name: hostlore-redis
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   app:
     build: .
-    container_name: netscanner-app
+    container_name: hostlore-app
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       # Set this in your .env (required) — e.g. a 32+ char random string
@@ -33,6 +46,16 @@ services:
       DB_USER: ${POSTGRES_USER:-netadmin}
       DB_NAME: ${POSTGRES_DB:-network_inventory}
       DB_PASSWORD_FILE: /run/secrets/db_password
+      # Shared rate-limit backend so limits are consistent across gunicorn workers.
+      RATE_LIMIT_STORAGE_URI: redis://redis:6379/0
+      GUNICORN_WORKERS: ${GUNICORN_WORKERS:-3}
+      GUNICORN_LOG_LEVEL: ${GUNICORN_LOG_LEVEL:-info}
+      # Optional: HTTP basic auth. Generate hash with:
+      #   python -c 'import bcrypt; print(bcrypt.hashpw(b"your-pass", bcrypt.gensalt()).decode())'
+      HOSTLORE_AUTH_USER: ${HOSTLORE_AUTH_USER:-}
+      HOSTLORE_AUTH_PASSWORD_HASH: ${HOSTLORE_AUTH_PASSWORD_HASH:-}
+      # Optional: schedule scans automatically. e.g. "15m", "1h", "" to disable.
+      SCAN_SCHEDULE_INTERVAL: ${SCAN_SCHEDULE_INTERVAL:-}
     ports:
       - "8000:8000"
     volumes:
@@ -40,6 +63,12 @@ services:
       - ./logs:/app/logs
     secrets:
       - db_password
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8000/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
 
 volumes:
   pgdata:

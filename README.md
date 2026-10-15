@@ -1,145 +1,158 @@
-# 🛰 NetScanner - Network Inventory Tool (Dockerized)
+# 🛰 Hostlore — the story of every host on your network
 
-NetScanner is a **Flask-based LAN scanning and inventory tool** that detects network hosts, services, and websites, stores results in **PostgreSQL**, and sends **Telegram alerts** for website status changes.
+[![CI](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml/badge.svg)](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml)
 
-It uses:
-- **Nmap** (host discovery & service detection)
-- **SNMP** (CPU, RAM, system info when available)
-- **HTTP parsing** (web titles & banners)
-- **Telegram Bot API** (alerts)
-- **PostgreSQL** (data storage)
-- **Docker Compose** (deployment)
+Hostlore is an **agentless LAN inventory tool**: it discovers hosts, open services and websites with **Nmap / SNMP / NetBIOS / HTTP**, stores the inventory in **PostgreSQL**, **tells you what changed** since the last scan (new device, device offline, port opened/closed, website down) in one Telegram digest, and exposes **Prometheus metrics** with a ready-made **Grafana dashboard**.
+
+```
+             ┌──────────────── docker compose ────────────────┐
+ browser ──► │  app (Flask + Gunicorn, nmap)  ──►  PostgreSQL │
+             │      │  ▲                                       │
+             │      │  └── Redis (scan state, scheduler lock,  │
+             │      │            shared rate limits)           │
+             │      └──► /metrics ◄── Prometheus ──► Grafana   │  (observability overlay)
+             └──────┼─────────────────────────────────────────┘
+                    └──► Telegram Bot API (one change digest per scan)
+```
 
 ---
 
 ## 📦 Features
-- Passive LAN scanning without SSH or agents
-- OS & hostname detection (multi-method: SNMP, NetBIOS, UPnP, HTTP)
-- Website UP/DOWN alerts via Telegram
-- Encrypted secret storage (Fernet)
-- Web dashboard for viewing scan results
-- Fully Dockerized (no manual dependency installation)
+- Agentless scanning — no SSH, no agents on the targets
+- OS & hostname detection (SNMP, NetBIOS, UPnP, HTTP banners, SMB fallback)
+- **Change detection**: 🆕 new device · 🔻 went offline · 🔁 back online · 🔓 port opened · 🔒 port closed · 🌐 website up/down · 🏷️ title changed
+- **One digest per scan**, not one message per host; the first scan is a silent **baseline** (one summary)
+- **No false alarms from timeouts**: a host whose port scan times out keeps its previous state instead of being reported as "all ports closed"
+- Background scans with live status and cancel; optional **scheduled scans**
+- **Exactly-one scheduler** across Gunicorn workers (Redis `SET NX` lock with TTL — if the worker dies, another takes over)
+- Encrypted secret storage (Fernet), DB password via **Docker secret**
+- Optional **HTTP basic auth** (bcrypt) and **rate-limited** reset page
+- `/health` (app, DB, setup state) and `/metrics` (Prometheus)
+- Prometheus metrics aggregated across all Gunicorn workers (multiprocess mode)
+- CI: lint (ruff) → unit tests → Docker smoke test → **e2e lab scan** → Trivy image scan
 
 ---
 
-## 🚀 Quick Start (Local Deployment)
+## 🚀 Quick start
 
-### 1️⃣ Clone this repository
 ```bash
-git clone https://github.com/yourname/network-inventory-tool-docker.git
-cd network-inventory-tool-docker
-```
+git clone https://github.com/ringsfrings/hostlore.git
+cd hostlore
 
-### 2️⃣ Prepare secrets
-Before running the containers, **you must create your own database password** (this is required).  
-Create the secrets folder and the password file:
-```bash
-mkdir -p secrets
-echo "your-db-password" > secrets/db_password.txt
-```
+# 1. config + DB password (both are git-ignored)
+cp .env.example .env
+sed -i.bak "s/^FLASK_SECRET_KEY=.*/FLASK_SECRET_KEY=$(openssl rand -hex 32)/" .env && rm .env.bak
+mkdir -p secrets && openssl rand -hex 24 > secrets/db_password.txt && chmod 600 secrets/db_password.txt
 
-
-### 3️⃣ Update environment variables
-Open `docker-compose.yml` and update these values to match your own database settings:
-```yaml
-DB_USER: your_db_user
-DB_NAME: your_db_name
-DB_HOST: db           # Or your own database host
-DB_PORT: 5432
-```
-The database password is read securely from `/run/secrets/db_password` (mapped from `secrets/db_password.txt`).
-
-If you want to change the default PostgreSQL database container user and name, also update in the `db` service:
-```yaml
-POSTGRES_USER: your_db_user
-POSTGRES_DB: your_db_name
-```
-
----
-
-### 4️⃣ Start with Docker Compose
-```bash
+# 2. start
 docker compose up -d --build
 ```
 
----
+Open **http://localhost:8000**. On first run the **Setup page** asks for:
+- **IP range** to scan (e.g. `192.168.1.0/24`)
+- **Telegram bot token + chat ID** (optional — create a bot with [@BotFather](https://t.me/BotFather))
 
-### 5️⃣ Open the app
-Go to:
+The DB password comes from the Docker secret, so it is not asked for. Settings are encrypted into `config/secrets.enc`; change them later at `/reset` (rate-limited).
+
+### With Prometheus + Grafana
+```bash
+docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d
 ```
-http://localhost:8000
+- Grafana: http://localhost:3000 (user/password from `GF_ADMIN_*` in `.env`) — dashboard **Hostlore** is provisioned automatically
+- Prometheus: http://localhost:9090
+
+---
+
+## ⚙ Configuration (`.env`)
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `FLASK_SECRET_KEY` | — (**required**) | Flask session/CSRF key |
+| `POSTGRES_USER` / `POSTGRES_DB` | `netadmin` / `network_inventory` | DB created by the `db` container, reused by the app |
+| `GUNICORN_WORKERS` | `3` | Web workers |
+| `GUNICORN_LOG_LEVEL` | `info` | |
+| `HOSTLORE_AUTH_USER` / `HOSTLORE_AUTH_PASSWORD_HASH` | empty (auth **off**) | Enable HTTP basic auth. Hash: `python -c 'import bcrypt; print(bcrypt.hashpw(b"pass", bcrypt.gensalt()).decode())'` |
+| `SCAN_SCHEDULE_INTERVAL` | empty (off) | Automatic scans, e.g. `15m`, `1h` |
+| `GF_ADMIN_USER` / `GF_ADMIN_PASSWORD` | `admin` / `admin` | Grafana (overlay only) |
+
+The DB password is **only** read from `secrets/db_password.txt` (mounted at `/run/secrets/db_password`).
+`/health` and `/metrics` stay open when auth is on, so health checks and Prometheus keep working.
+
+---
+
+## 📈 Metrics
+
+| Metric | Type | Meaning |
+|---|---|---|
+| `hostlore_scans_total{profile,result}` | counter | Finished scans by outcome |
+| `hostlore_scan_duration_seconds{profile}` | histogram | Full scan duration |
+| `hostlore_scan_in_progress` | gauge | 1 while a scan runs |
+| `hostlore_hosts_discovered` / `hostlore_hosts_scanned` | gauge | Inventory size (last scan) |
+| `hostlore_services_open` | gauge | Open services (last scan) |
+| `hostlore_websites_up` / `hostlore_websites_down` | gauge | Website status |
+| `hostlore_nmap_duration_seconds{op}` | histogram | Time per nmap operation |
+| `hostlore_nmap_timeouts_total{op}` | counter | nmap timeouts |
+| `hostlore_telegram_sends_total{result}` | counter | Telegram alert deliveries |
+
+Check exact names with `curl -s localhost:8000/metrics | grep hostlore_`.
+
+---
+
+## 🧪 Testing
+
+### Unit tests
+
+```bash
+python3.10 -m venv .venv && . .venv/bin/activate
+pip install -r requirements-dev.txt
+ruff check .
+pytest --cov=app --cov=db
 ```
-On first run, you’ll see the **Setup Page**. Enter:
-- **IP Range** (e.g. `192.168.1.0/24`)
-- **Telegram Bot Token**
-- **Telegram Chat ID**
-- **DB Password** (pre-filled if using `DB_PASSWORD_FILE` secret)
+Tests need no Postgres or Redis: the DB init is stubbed and Redis falls back to an in-memory store.
 
-Secrets are encrypted in `/app/config/secrets.enc`.
+### End-to-end lab (real scans, no real network needed)
+`docker-compose.lab.yml` builds a small isolated "office LAN" (`172.30.99.0/24`) with a web server, an SSH server, an SNMP agent and a **mock Telegram API**. `lab/e2e.sh` drives the whole product through it:
 
----
-
-## ⚙ Configuration
-
-### Database connection
-By default, the `docker-compose.yml` uses:
-```yaml
-environment:
-  DB_HOST: db
-  DB_PORT: 5432
-  DB_USER: netadmin
-  DB_NAME: network_inventory
-  DB_PASSWORD_FILE: /run/secrets/db_password
+```bash
+./lab/e2e.sh          # ~2 minutes; KEEP=0 ./lab/e2e.sh tears the lab down afterwards
 ```
 
-If you want to use **your own database**:
-1. Change `DB_HOST`, `DB_USER`, `DB_NAME` in both the `app` and `db` services.
-2. Provide the password via `secrets/db_password.txt`.
+| Step | Action | Expected |
+|---|---|---|
+| 1–2 | start stack, first-run setup | app healthy, settings saved |
+| 3 | baseline scan | web1 site + title, ssh1 port 22, snmp1 data over SNMP; **one** baseline message; metrics counted |
+| 4 | scan again, nothing changed | **no** alert |
+| 5 | open port 8080 on ssh1 | digest: `opened tcp/8080` |
+| 6 | stop web1 | digest: `went offline` |
+| 7 | start web1 | digest: `back online` |
+
+The lab uses its own config volume, so it never touches your real `config/`. The same script runs in CI on every push.
 
 ---
 
-### Telegram alerts
-1. Create a Telegram bot: [@BotFather](https://t.me/BotFather)
-2. Get your **Bot Token** and **Chat ID**
-3. Enter them in the setup page or update via `/reset` route.
-
----
-
-## 🔄 Resetting Secrets
-To change database credentials, IP range, or Telegram settings:
-- Visit: `http://localhost:8000/reset`
-- Enter new details; they overwrite the encrypted secrets file.
-
----
-
-## 📂 Project Structure
+## 📂 Project structure
 ```
-network-inventory-tool-docker/
-├── app/                 # Flask app code (routes, scanner, utils)
-├── db/                  # SQLAlchemy models, init.sql
-├── secrets/             # Local folder for DB password secret
-├── config/              # Encrypted config & Fernet key
-├── docker-compose.yml   # Multi-container setup
-├── Dockerfile           # App container build
-├── entrypoint.sh        # Startup script
-├── requirements.txt     # Python dependencies
-└── run.py               # App entrypoint for Gunicorn
+├── app/
+│   ├── routes.py          # dashboard, setup/reset, results, /health, /metrics
+│   ├── scanner.py         # nmap / SNMP / NetBIOS / HTTP discovery
+│   ├── scan_worker.py     # background scan state (Redis or in-memory)
+│   ├── scheduler.py       # interval scans, single leader via Redis lock
+│   ├── auth.py            # optional HTTP basic auth
+│   ├── metrics.py         # Prometheus metrics
+│   ├── telegram.py        # alerts
+│   └── secrets_manager.py # Fernet-encrypted settings
+├── db/                    # SQLAlchemy models, init.sql
+├── observability/         # Prometheus config, Grafana provisioning + dashboard
+├── tests/                 # pytest suite
+├── .github/workflows/ci.yml
+├── docker-compose.yml               # app + Postgres + Redis
+└── docker-compose.observability.yml # + Prometheus + Grafana
 ```
 
 ---
 
-## 🛠 Development Notes
-- Runs via **Gunicorn** inside Docker
-- Requires `nmap`, `nmblookup`, and other network tools (installed in Dockerfile)
-- Encrypted secrets stored at `/app/config/secrets.enc`
-- PostgreSQL container persists data in `pgdata` volume
-
----
-
-## 🔒 Security Recommendations
-- Never commit `secrets/` folder to GitHub
-- Use **private Docker Hub** repo if you don’t want your `.py` code accessible
-- For public images, you can strip `.py` files after compiling to `.pyc`:
-```dockerfile
-RUN python -m compileall -q /app && find /app -name "*.py" -delete
-```
+## 🔒 Security notes
+- Turn on basic auth (or put the app behind a reverse proxy with auth/TLS) before exposing it beyond localhost.
+- `.env`, `secrets/`, `config/secret.key` and `config/secrets.enc` are git-ignored — never commit them.
+- Only scan networks you own or are authorised to scan.
+- From the default Docker bridge network, discovery works over IP (ping/TCP); for ARP-level discovery of the host's LAN, run the app with `network_mode: host`.

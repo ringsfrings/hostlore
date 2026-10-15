@@ -1,20 +1,26 @@
 # app/__init__.py
 
-from flask import Flask
-import os
-import secrets
 import logging
 import logging.config
+import os
+import secrets
+
+from flask import Flask
 
 # Use shared extension instances to avoid circular import issues
 from app.extensions import csrf, limiter
 
 
 def _configure_logging():
-    """Set up rotating file + console logging."""
+    """Set up rotating file + console logging.
+
+    disable_existing_loggers=False keeps gunicorn.error / gunicorn.access alive so
+    worker-boot tracebacks and access logs still surface in `docker compose logs`.
+    """
     os.makedirs("logs", exist_ok=True)
     logging.config.dictConfig({
         "version": 1,
+        "disable_existing_loggers": False,
         "formatters": {
             "default": {"format": "%(asctime)s %(levelname)s %(name)s: %(message)s"}
         },
@@ -73,5 +79,21 @@ def create_app():
     # ---- Blueprints ----
     from app.routes import main
     app.register_blueprint(main)
+
+    # ---- HTTP basic auth (opt-in via env vars — see app/auth.py) ----
+    from app import auth
+    app.before_request(auth.check_auth)
+    auth.log_startup_status()
+
+    # ---- DB init (best-effort; fails silently on first run before /setup) ----
+    try:
+        from db.models import init_db
+        init_db()
+    except Exception as e:
+        app.logger.info("DB not initialized at startup (expected on first run): %s", e)
+
+    # ---- Scheduled scans (opt-in via SCAN_SCHEDULE_INTERVAL) ----
+    from app import scheduler
+    scheduler.start_if_configured()
 
     return app

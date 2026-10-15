@@ -1,13 +1,40 @@
-Flask
-sqlalchemy
-psycopg2-binary
-python-nmap
-pysnmp
-requests
-pyyaml
-beautifulsoup4
-gunicorn
-cryptography
-Flask-WTF
-Flask-Limiter
-defusedxml
+# Web
+Flask==3.0.3
+Werkzeug==3.0.3
+Jinja2==3.1.4
+itsdangerous==2.2.0
+click==8.1.7
+
+# DB
+SQLAlchemy==2.0.30
+psycopg2-binary==2.9.9
+
+# Scanning / parsing
+python-nmap==0.7.1
+# pysnmp 6.x rewrote the hlapi API — pin to 4.4.12 until the code migrates.
+pysnmp==4.4.12
+# pyasn1 0.6.0 removed pyasn1.compat.octets.null which pysnmp 4.4.12 imports.
+# Pin to the last 0.5.x release.
+pyasn1==0.5.1
+pyasn1-modules==0.3.0
+beautifulsoup4==4.12.3
+requests==2.32.4
+PyYAML==6.0.2
+defusedxml==0.7.1
+urllib3==2.2.2
+
+# Prod server
+gunicorn==22.0.0
+
+# Security add-ons
+cryptography==43.0.0
+flask-wtf==1.2.1
+flask-limiter==3.8.0
+email-validator==2.2.0
+bcrypt==4.2.0
+
+# Rate limiter storage backend (compose provides redis service)
+redis==5.0.7
+
+# Observability
+prometheus-client==0.20.0

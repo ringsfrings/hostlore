@@ -1,12 +1,11 @@
 # app/fallback_utils.py (
 
-import socket
-import subprocess
-import re
-import shutil
 import ipaddress
 import logging
-from typing import Optional
+import re
+import shutil
+import socket
+import subprocess
 
 LOG = logging.getLogger(__name__)
 
@@ -25,7 +24,7 @@ def _is_ip(ip: str) -> bool:
         return False
 
 
-def netbios_name(ip: str) -> Optional[str]:
+def netbios_name(ip: str) -> str | None:
     """
     Try NetBIOS (Windows) name. Requires nmblookup installed.
     """
@@ -50,7 +49,7 @@ def netbios_name(ip: str) -> Optional[str]:
     return None
 
 
-def smb_os_discovery(ip: str) -> Optional[str]:
+def smb_os_discovery(ip: str) -> str | None:
     """
     Run nmap smb-os-discovery script on port 445 to fingerprint Windows.
     """
@@ -63,7 +62,7 @@ def smb_os_discovery(ip: str) -> Optional[str]:
                 "--script", "smb-os-discovery",
                 "-oX", "-", ip, "-T4", "--host-timeout", "20s", "-Pn"
             ],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=25, check=False
+            capture_output=True, timeout=25, check=False
         )
         xml = proc.stdout.decode(errors="ignore")
         # Extract "OS: ..." via a simple regex from XML text for safety
@@ -77,7 +76,7 @@ def smb_os_discovery(ip: str) -> Optional[str]:
     return None
 
 
-def http_headers_os(ip: str) -> Optional[str]:
+def http_headers_os(ip: str) -> str | None:
     """
     Hit http://<ip> HEAD and try to use the Server header as a weak OS hint.
     """
@@ -94,7 +93,7 @@ def http_headers_os(ip: str) -> Optional[str]:
     return None
 
 
-def upnp_ssdp_friendlyname(ip: str) -> Optional[str]:
+def upnp_ssdp_friendlyname(ip: str) -> str | None:
     """
     Send a basic SSDP M-SEARCH to port 1900/udp and try to read a friendly name.
     Only works on same LAN segments typically.
@@ -106,12 +105,12 @@ def upnp_ssdp_friendlyname(ip: str) -> Optional[str]:
         sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         sock.settimeout(2.0)
         msg = (
-            "M-SEARCH * HTTP/1.1\r\n"
-            "HOST: 239.255.255.250:1900\r\n"
-            "MAN: \"ssdp:discover\"\r\n"
-            "MX: 1\r\n"
-            "ST: ssdp:all\r\n\r\n"
-        ).encode()
+            b"M-SEARCH * HTTP/1.1\r\n"
+            b"HOST: 239.255.255.250:1900\r\n"
+            b"MAN: \"ssdp:discover\"\r\n"
+            b"MX: 1\r\n"
+            b"ST: ssdp:all\r\n\r\n"
+        )
         sock.sendto(msg, ("239.255.255.250", 1900))
         # Many devices reply from their IP; read a couple of responses
         for _ in range(3):
@@ -121,7 +120,7 @@ def upnp_ssdp_friendlyname(ip: str) -> Optional[str]:
                 for line in text.splitlines():
                     if line.lower().startswith("server:"):
                         return line.split(":", 1)[1].strip()
-    except socket.timeout:
+    except TimeoutError:
         pass
     except Exception as e:
         LOG.debug("SSDP query failed for %s: %s", ip, e)

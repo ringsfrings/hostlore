@@ -1,7 +1,8 @@
 # app/utils.py
-import os
 import ipaddress
-from app.secrets_manager import encrypt_secrets, decrypt_secrets, SECRETS_FILE
+import os
+
+from app.secrets_manager import SECRETS_FILE, decrypt_secrets, encrypt_secrets
 
 # ---------- encrypted config helpers ----------
 
@@ -22,12 +23,18 @@ def _get_env_password() -> str | None:
     path = os.getenv("DB_PASSWORD_FILE")
     if path and os.path.exists(path):
         try:
-            with open(path, "r", encoding="utf-8") as f:
+            with open(path, encoding="utf-8") as f:
                 return f.read().strip()
         except Exception:
             pass
     val = os.getenv("DB_PASSWORD")
     return val.strip() if val else None
+
+
+def has_env_db_password() -> bool:
+    """True when the container/host provides a DB password out-of-band
+    (docker secret / env var), so the UI shouldn't ask for one."""
+    return _get_env_password() is not None
 
 def _build_db_uri(db_host: str, db_port: str | None, password: str) -> str:
     # Keep your existing username/db name
@@ -64,8 +71,8 @@ def update_ip_range(ip_range: str):
     """Dashboard path: update only the CIDR while keeping other secrets intact."""
     try:
         _ = ipaddress.ip_network(ip_range, strict=False)
-    except Exception:
-        raise ValueError("Invalid CIDR format.")
+    except ValueError as e:
+        raise ValueError("Invalid CIDR format.") from e
 
     cfg = _load_or_default()
     cfg["app"]["ip_range"] = ip_range
@@ -87,7 +94,7 @@ def get_scan_profile() -> str:
     Defaults to 'quick' if the file is missing/invalid.
     """
     try:
-        with open(PROFILE_FILE, "r", encoding="utf-8") as f:
+        with open(PROFILE_FILE, encoding="utf-8") as f:
             p = (f.read() or "").strip().lower()
             return p if p in VALID_PROFILES else "quick"
     except Exception:

@@ -1,4 +1,9 @@
-import sys, socket, time, argparse, urllib.request
+import argparse
+import socket
+import sys
+import time
+import urllib.request
+
 
 def wait_db(host: str, port: int, timeout: int) -> int:
     deadline = time.time() + timeout
