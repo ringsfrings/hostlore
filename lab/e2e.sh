@@ -76,6 +76,8 @@ has() { echo "$RESULTS" | json "$1"; }
   && pass "ssh1: tcp/22 open" || fail "ssh1 port 22 missing"
 [ "$(has 'any(h["ip"]=="172.30.99.12" and h["ram"] and h["os"]=="Linux" for h in d)')" = True ] \
   && pass "snmp1: RAM + OS read over SNMP" || fail "snmp1 SNMP data not read"
+[ "$(has 'any(h["ip"]=="172.30.99.12" and any(s["proto"]=="udp" and s["port"]==161 for s in h["services"]) for h in d)')" = True ] \
+  && pass "snmp1: udp/161 listed (proven by the SNMP answer)" || fail "snmp1 udp/161 missing"
 MSGS=$(curl -fsS "$TG/messages")
 [ "$(echo "$MSGS" | json 'len(d)==1 and "Baseline inventory" in d[0]["text"] and d[0]["chat_id"]=="4242"')" = True ] \
   && pass "baseline: exactly one summary message (no per-device spam)" || fail "baseline alert wrong: $MSGS"

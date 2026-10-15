@@ -85,7 +85,7 @@
                     OS {{ '▲' if sort=='os' and direction=='asc' else ('▼' if sort=='os' else '') }}
                   </a>
                 </th>
-                <th>CPU</th><th>RAM</th>
+                <th title="Read over SNMP; N/A = no SNMP agent">CPU</th><th title="Free memory, read over SNMP; N/A = no SNMP agent">RAM</th>
                 <th style="min-width:200px;">
                   <a href="{{ url_for('main.results', page=1, per=per, q=q, status=status, osfam=osfam, svc=svc, pmin=pmin, pmax=pmax, sort='status', dir=newdir if sort=='status' else 'asc') }}" class="link-underline link-underline-opacity-0">
                     Website {{ '▲' if sort=='status' and direction=='asc' else ('▼' if sort=='status' else '') }}
@@ -107,7 +107,7 @@
                 </td>
                 <td>{{ h.hostname or 'Unknown' }}</td>
                 <td>{{ h.os or 'Unknown' }}</td>
-                <td>{{ h.cpu or 'N/A' }}</td>
+                <td>{% if h.cpu %}{{ h.cpu }}%{% else %}N/A{% endif %}</td>
                 <td>{% if h.ram and h.ram|int(0) > 0 %}{{ '%.1f'|format(h.ram|int / 1048576) }} GB free{% else %}N/A{% endif %}</td>
                 <td>
                   {% if h.website %}

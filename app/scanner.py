@@ -332,6 +332,10 @@ def _scan_one_host(ip, profile, priv_root, per_host_timeout, state, cancel_event
 
     ptr = _reverse_dns(ip)
     snmp_descr, snmp_cpu, snmp_ram, snmp_sysname = get_snmp_info(ip)
+    # The TCP-only profiles never see UDP/161, but an SNMP answer proves it's open.
+    if (snmp_descr or snmp_sysname) and not any(s["proto"] == "udp" and s["port"] == 161 for s in services):
+        services.append({"proto": "udp", "port": 161, "service": "snmp", "product": "", "version": "",
+                         "state": "open", "tunnel": "", "cpes": []})
     nb_name = netbios_name(ip) if has_445 else None
     smb_os = smb_os_discovery(ip) if has_445 else None
     ssdp_server = upnp_ssdp_friendlyname(ip) if any(s["proto"] == "udp" and s["port"] == 1900 for s in services) else None

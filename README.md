@@ -120,13 +120,13 @@ Tests need no Postgres or Redis: the DB init is stubbed and Redis falls back to 
 | Step | Action | Expected |
 |---|---|---|
 | 1–2 | start stack, first-run setup | app healthy, settings saved |
-| 3 | baseline scan | web1 site + title, ssh1 port 22, snmp1 data over SNMP; **one** baseline message; metrics counted |
+| 3 | baseline scan | web1 site + title, ssh1 port 22, snmp1 data + udp/161 over SNMP; **one** baseline message; metrics counted |
 | 4 | scan again, nothing changed | **no** alert |
 | 5 | open port 8080 on ssh1 | digest: `opened tcp/8080` |
 | 6 | stop web1 | digest: `went offline` |
 | 7 | start web1 | digest: `back online` |
 
-The lab uses its own config volume, so it never touches your real `config/`. The same script runs in CI on every push.
+The lab uses its own config volume, so it never touches your real `config/`. On Docker Desktop the `172.30.99.x` lab network is not routable from your Mac, so web1 is also published at http://localhost:8088. The same script runs in CI on every push.
 
 ---
 
