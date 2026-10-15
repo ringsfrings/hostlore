@@ -1,6 +1,7 @@
 # 🛰 Hostlore — the story of every host on your network
 
-[![CI](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml/badge.svg)](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml)
+[![CI/CD](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml/badge.svg)](https://github.com/ringsfrings/hostlore/actions/workflows/ci.yml)
+[![Docker Hub](https://img.shields.io/docker/v/ringsfrings/hostlore?label=docker%20hub&sort=semver)](https://hub.docker.com/r/ringsfrings/hostlore)
 
 Hostlore is an **agentless LAN inventory tool**: it discovers hosts, open services and websites with **Nmap / SNMP / NetBIOS / HTTP**, stores the inventory in **PostgreSQL**, **tells you what changed** since the last scan (new device, device offline, port opened/closed, website down) in one Telegram digest, and exposes **Prometheus metrics** with a ready-made **Grafana dashboard**.
 
@@ -29,7 +30,7 @@ Hostlore is an **agentless LAN inventory tool**: it discovers hosts, open servic
 - Optional **HTTP basic auth** (bcrypt) and **rate-limited** reset page
 - `/health` (app, DB, setup state) and `/metrics` (Prometheus)
 - Prometheus metrics aggregated across all Gunicorn workers (multiprocess mode)
-- CI: lint (ruff) → unit tests → Docker smoke test → **e2e lab scan** → Trivy image scan
+- CI/CD: lint (ruff) → unit tests → Docker smoke test → **e2e lab scan** → Trivy image scan → **publish multi-arch image to Docker Hub**
 
 ---
 
@@ -53,6 +54,14 @@ Open **http://localhost:8000**. On first run the **Setup page** asks for:
 - **Telegram bot token + chat ID** (optional — create a bot with [@BotFather](https://t.me/BotFather))
 
 The DB password comes from the Docker secret, so it is not asked for. Settings are encrypted into `config/secrets.enc`; change them later at `/reset` (rate-limited).
+
+### Use the published image (no build)
+Every commit on `main` that passes all checks is published to Docker Hub for `amd64` and `arm64`:
+```bash
+docker compose pull && docker compose up -d                   # latest
+HOSTLORE_TAG=1.0.0 docker compose pull && HOSTLORE_TAG=1.0.0 docker compose up -d   # pinned release
+```
+Tags: `latest` (main), `sha-<commit>`, and `X.Y.Z` / `X.Y` for git tags `vX.Y.Z`.
 
 ### With Prometheus + Grafana
 ```bash
