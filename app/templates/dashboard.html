@@ -26,9 +26,9 @@
         <h1 class="h4 mb-0">Dashboard</h1>
         <div class="ms-auto d-flex align-items-center gap-2">
           <select id="profile" class="form-select form-select-sm" style="width: 240px;">
-            <option value="quick" {{ 'selected' if profile=='quick' else '' }}>⚡ Quick (top 2000 TCP)</option>
-            <option value="balanced" {{ 'selected' if profile=='balanced' else '' }}>🧭 Balanced (full TCP)</option>
-            <option value="deep" {{ 'selected' if profile=='deep' else '' }}>🌊 Deep (full TCP + top UDP)</option>
+            <option value="quick" {{ 'selected' if profile=='quick' else '' }}>⚡ Quick (top 100 TCP)</option>
+            <option value="balanced" {{ 'selected' if profile=='balanced' else '' }}>🧭 Balanced (top 2000 TCP + OS)</option>
+            <option value="deep" {{ 'selected' if profile=='deep' else '' }}>🌊 Deep (all TCP + top 200 UDP)</option>
           </select>
           <button id="btnStart" class="btn btn-primary" {% if not secrets_ok or not db_ok %}disabled{% endif %}>Start</button>
           <button id="btnCancel" class="btn btn-outline-danger">Cancel</button>

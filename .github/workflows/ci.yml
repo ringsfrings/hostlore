@@ -85,7 +85,7 @@ jobs:
       - name: Probe /metrics
         run: |
           curl -fsS http://localhost:8000/metrics | head -30
-          curl -fsS http://localhost:8000/metrics | grep -q 'hostlore_scans_total'
+          curl -fsS http://localhost:8000/metrics | grep -q '^hostlore_scans_total{profile="quick",result="complete"} 0'
 
       - name: Dump container logs on failure
         if: failure()
@@ -126,7 +126,7 @@ jobs:
         run: docker build -t hostlore:ci .
 
       - name: Run Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25  # v0.36.0
         with:
           image-ref: hostlore:ci
           format: sarif

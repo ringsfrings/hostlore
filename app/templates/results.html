@@ -108,7 +108,7 @@
                 <td>{{ h.hostname or 'Unknown' }}</td>
                 <td>{{ h.os or 'Unknown' }}</td>
                 <td>{{ h.cpu or 'N/A' }}</td>
-                <td>{{ h.ram or 'N/A' }}</td>
+                <td>{% if h.ram and h.ram|int(0) > 0 %}{{ '%.1f'|format(h.ram|int / 1048576) }} GB free{% else %}N/A{% endif %}</td>
                 <td>
                   {% if h.website %}
                     <span class="badge {{ 'bg-success' if h.website.status else 'bg-danger' }}">

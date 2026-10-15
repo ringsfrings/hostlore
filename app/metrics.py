@@ -108,6 +108,15 @@ TELEGRAM_SENDS_TOTAL = Counter(
 )
 
 
+# Pre-create every label combination at 0: in multiprocess mode a series only
+# exists after its first increment, so fresh installs would show "no data".
+for _p in ("quick", "balanced", "deep"):
+    for _r in ("complete", "cancelled", "error"):
+        SCANS_TOTAL.labels(profile=_p, result=_r)
+for _r in ("ok", "error", "skipped"):
+    TELEGRAM_SENDS_TOTAL.labels(result=_r)
+
+
 def render() -> tuple[bytes, str]:
     try:
         from app.scan_worker import is_running
